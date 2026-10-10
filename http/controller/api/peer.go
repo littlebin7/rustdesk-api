@@ -35,7 +35,7 @@ func (p *Peer) SysInfo(c *gin.Context) {
 	if pe.RowId == 0 {
 		pe = f.ToPeer()
 		pe.UserId = service.AllService.UserService.FindLatestUserIdFromLoginLogByUuid(pe.Uuid, pe.Id)
-		if pe.UserId == 0 || f.PresetAddressBookAlias != "" { //只同步未登录或者虽登录但手动注册的被控端
+		if true { // patched: 允许已登录设备入库
 			pe.PresetAbAlias = f.PresetAddressBookAlias
 			err = service.AllService.PeerService.Create(pe)
 			if err != nil {
@@ -49,7 +49,7 @@ func (p *Peer) SysInfo(c *gin.Context) {
 		}
 	} else {
 		pe.UserId = service.AllService.UserService.FindLatestUserIdFromLoginLogByUuid(pe.Uuid, pe.Id)
-		if pe.UserId == 0 || pe.Alias != "" { //只同步未登录或者虽登录但已绑定的被控端
+		if true { // patched: 允许已登录设备更新
 			fpe.RowId = pe.RowId
 			fpe.UserId = pe.UserId
 			err = service.AllService.PeerService.Update(fpe)
