@@ -1,38 +1,20 @@
-FROM rustdesk/rustdesk-server-s6:latest AS server
-
-FROM alpine
+# 直接继承 alonginwind 的成品 s6 镜像（不再"挑文件重组"）
+#
+# 底座已经包含：
+#   - hbbs / hbbr / rustdesk-utils 1.1.17（含 MUST_LOGIN 等 server fork 特性）
+#   - s6-overlay 启动框架 + hbbs / hbbr / api / key-secret 等服务定义（api 服务就是 cd /app && ./apimain）
+#   - /ip2region_v4.xdb（多中继按运营商选择用，单中继时不生效）
+#   - tzdata、HEALTHCHECK、VOLUME /data、VOLUME /app/data、EXPOSE、ENTRYPOINT ["/init"]
+#
+# 我们只做一件事：用自己 CI 编译的 release/ 覆盖 /app（apimain + resources + conf + docs）
+FROM alonginwind/rustdesk-server-s6:v1.2.4
 
 ARG BUILDARCH
-WORKDIR /app
-RUN apk add --no-cache tzdata
+
 COPY ./${BUILDARCH}/release /app/
 
-COPY --from=server /init /init
-COPY --from=server /etc/s6-overlay /etc/s6-overlay
-COPY --from=server /package /package
-COPY --from=server /usr/bin/healthcheck.sh /usr/bin/healthcheck.sh
-COPY --from=server /usr/bin/hbbr /usr/bin/hbbr
-COPY --from=server /usr/bin/hbbs /usr/bin/hbbs
-COPY --from=server /usr/bin/rustdesk-utils /usr/bin/rustdesk-utils
-COPY --from=server /command /command
+WORKDIR /app
 
-RUN \
-  mkdir -p /etc/s6-overlay/s6-rc.d/api && \
-  echo -e "key-secret\nhbbs" > /etc/s6-overlay/s6-rc.d/api/dependencies && \
-  echo "longrun" > /etc/s6-overlay/s6-rc.d/api/type && \
-  echo "#!/command/with-contenv sh" > /etc/s6-overlay/s6-rc.d/api/run && \
-  echo "cd /app" >> /etc/s6-overlay/s6-rc.d/api/run && \
-  echo "./apimain" >> /etc/s6-overlay/s6-rc.d/api/run && \
-  touch /etc/s6-overlay/s6-rc.d/user/contents.d/api && \
-  echo "/package/admin/s6/command/s6-svstat /run/s6-rc/servicedirs/api || exit 1" >> /usr/bin/healthcheck.sh && \
-  ln -s /run /var/run
-
-ENV RELAY=relay.example.com
-ENV ENCRYPTED_ONLY=0
-
-VOLUME /data
-VOLUME /app/data
-
-EXPOSE 21114 21115 21116 21116/udp 21117 21118 21119
-
-ENTRYPOINT ["/init"]
+# 回退方式（二选一）：
+#   git revert <本次提交>
+#   或把本文件恢复成"多阶段挑文件"版本： FROM rustdesk/rustdesk-server-s6:latest AS server + COPY --from=server ...
