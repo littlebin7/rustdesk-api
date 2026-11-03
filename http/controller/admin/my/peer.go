@@ -2,6 +2,7 @@ package my
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/lejianwen/rustdesk-api/v2/global"
 	"github.com/lejianwen/rustdesk-api/v2/http/request/admin"
 	"github.com/lejianwen/rustdesk-api/v2/http/response"
 	"github.com/lejianwen/rustdesk-api/v2/service"
@@ -29,6 +30,11 @@ type Peer struct {
 // @Router /admin/my/peer/list [get]
 // @Security token
 func (ct *Peer) List(c *gin.Context) {
+	if !global.Config.App.DeviceAddressBooks {
+		ct.legacyList(c)
+		return
+	}
+
 	query := &admin.PeerQuery{}
 	if err := c.ShouldBindQuery(query); err != nil {
 		response.Fail(c, 101, response.TranslateMsg(c, "ParamsError")+err.Error())
@@ -36,7 +42,7 @@ func (ct *Peer) List(c *gin.Context) {
 	}
 	u := service.AllService.UserService.CurUser(c)
 	res := service.AllService.PeerService.List(query.Page, query.PageSize, "alias", func(tx *gorm.DB) {
-		tx.Where("user_id = ? AND alias = ''", u.Id)
+		tx.Where("user_id = ?", u.Id)
 		if query.TimeAgo > 0 {
 			lt := time.Now().Unix() - int64(query.TimeAgo)
 			tx.Where("last_online_time < ?", lt)
@@ -55,5 +61,9 @@ func (ct *Peer) List(c *gin.Context) {
 			tx.Where("uuid in (?)", query.Uuids)
 		}
 	})
+	if err := service.AllService.PeerService.DecorateBooks(res.Peers, u, false); err != nil {
+		response.Fail(c, 101, response.TranslateMsg(c, "OperationFailed"))
+		return
+	}
 	response.Success(c, res)
 }
