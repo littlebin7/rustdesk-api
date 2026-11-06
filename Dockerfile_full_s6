@@ -4,12 +4,15 @@
 #   - hbbs / hbbr / rustdesk-utils 1.1.17（含 MUST_LOGIN 等 server fork 特性）
 #   - v1.2.6 底座（2026-10-20）额外带来：peer id 长度上限 253（等价官方 #713，即审计 R1 内存耗尽）、
 #     密钥交换失败崩溃修复、ID 冲突检测、日志落盘、Windows 10052 忽略；/app 与 api 启动脚本与 v1.2.4 一致
+#   - v1.2.7 底座（2026-11-02）额外带来：hbbs 对 TCP/WS 通道改为服务端主动保活（HEARTBEAT_INTERVAL=15s、
+#     IDLE_TIMEOUT=45s，修掉旧版 REG_TIMEOUT=30s 必断链的问题，web 客户端走 WS 直接受益）；
+#     ICE 候选路径不再持 conn_map 表锁跨 await；hbb_common 升级
 #   - s6-overlay 启动框架 + hbbs / hbbr / api / key-secret 等服务定义（api 服务就是 cd /app && ./apimain）
 #   - /ip2region_v4.xdb（多中继按运营商选择用，单中继时不生效）
 #   - tzdata、HEALTHCHECK、VOLUME /data、VOLUME /app/data、EXPOSE、ENTRYPOINT ["/init"]
 #
 # 我们只做一件事：用自己 CI 编译的 release/ 覆盖 /app（apimain + resources + conf + docs）
-FROM alonginwind/rustdesk-server-s6:v1.2.6
+FROM alonginwind/rustdesk-server-s6:v1.2.7
 
 ARG BUILDARCH
 
