@@ -22,6 +22,7 @@ type App struct {
 	TokenExpire        time.Duration `mapstructure:"token-expire"`
 	WebSso             bool          `mapstructure:"web-sso"`
 	DisablePwdLogin    bool          `mapstructure:"disable-pwd-login"`
+	TeamMode           bool          `mapstructure:"team-mode"`
 	CaptchaThreshold   int           `mapstructure:"captcha-threshold"`
 	BanThreshold       int           `mapstructure:"ban-threshold"`
 }
@@ -59,6 +60,13 @@ func (a *Admin) Init() {
 	}
 }
 
+func (a *App) Init() {
+	// The new address book scheme owns per-member books, so team mode only applies to the legacy scheme.
+	if a.DeviceAddressBooks {
+		a.TeamMode = false
+	}
+}
+
 // Init 初始化配置
 func Init(rowVal *Config, path string) *viper.Viper {
 	if path == "" {
@@ -70,6 +78,11 @@ func Init(rowVal *Config, path string) *viper.Viper {
 	v.SetEnvPrefix("RUSTDESK_API")
 	// A registered default also makes env-only opt-in visible to Unmarshal.
 	v.SetDefault("app.device-address-books", false)
+	// An older config.yaml lacks these, and their zero values break logins.
+	// Don't default from conf/config.yaml: much of it is placeholders.
+	v.SetDefault("app.captcha-threshold", 3)
+	v.SetDefault("app.token-expire", "168h")
+	v.SetDefault("app.team-mode", false)
 	v.SetConfigFile(path)
 	v.SetConfigType("yaml")
 	err := v.ReadInConfig()
@@ -91,10 +104,18 @@ func Init(rowVal *Config, path string) *viper.Viper {
 				rowVal.Rustdesk.ParsePort()
 			})
 	*/
+	// Older releases shipped these as a bare number of seconds, which decodes
+	// as nanoseconds. A second or more of nanoseconds already works, so it stays.
+	for _, k := range []string{"app.token-expire", "jwt.expire-duration"} {
+		if n, ok := v.Get(k).(int); ok && n > 0 && time.Duration(n) < time.Second {
+			v.Set(k, time.Duration(n)*time.Second)
+		}
+	}
 	if err := v.Unmarshal(rowVal); err != nil {
 		panic(fmt.Errorf("Fatal error config: %s \n", err))
 	}
 	rowVal.Rustdesk.LoadKeyFile()
+	rowVal.App.Init()
 	rowVal.Admin.Init()
 	return v
 }
