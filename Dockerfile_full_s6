@@ -7,12 +7,16 @@
 #   - v1.2.7 底座（2026-11-02）额外带来：hbbs 对 TCP/WS 通道改为服务端主动保活（HEARTBEAT_INTERVAL=15s、
 #     IDLE_TIMEOUT=45s，修掉旧版 REG_TIMEOUT=30s 必断链的问题，web 客户端走 WS 直接受益）；
 #     ICE 候选路径不再持 conn_map 表锁跨 await；hbb_common 升级
+#   - v1.2.8/v1.2.9 底座（2026-11-12）额外带来：转发前校验 relay UUID（等价官方 44de977 安全修复）、
+#     hbbr 中继写超时 RELAY_WRITE_TIMEOUT=15s、中继 waiter 代际令牌（官方 #721）、WS 握手 30s 超时（#722）、
+#     管理口回包 write_all+timeout（#717/#746）、消息大小上限 MAX_MESSAGE_KB=64（#747，hbbr 首帧 128KiB 后放宽）、
+#     hbbr 黑白名单按 IPv4 形态匹配（#748）、aarch64-musl 交叉编译支持、RegisterPk 拒绝落日志
 #   - s6-overlay 启动框架 + hbbs / hbbr / api / key-secret 等服务定义（api 服务就是 cd /app && ./apimain）
 #   - /ip2region_v4.xdb（多中继按运营商选择用，单中继时不生效）
 #   - tzdata、HEALTHCHECK、VOLUME /data、VOLUME /app/data、EXPOSE、ENTRYPOINT ["/init"]
 #
 # 我们只做一件事：用自己 CI 编译的 release/ 覆盖 /app（apimain + resources + conf + docs）
-FROM alonginwind/rustdesk-server-s6:v1.2.7
+FROM alonginwind/rustdesk-server-s6:v1.2.9
 
 ARG BUILDARCH
 
